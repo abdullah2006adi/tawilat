@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>ترتيب الطاولات</title>
+<style>
+:root{--bg:#0f1720;--panel:#17212c;--line:#2a3746;--tx:#e8eef5;--mut:#93a3b5;--acc:#2fbf71;--warn:#ffd23f;--red:#ff5d5d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:Tajawal,"Geeza Pro","SF Arabic",system-ui,-apple-system,sans-serif;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+body{display:flex;flex-direction:column}
+.tabs{display:flex;gap:4px;padding:6px 8px;padding-top:max(6px,env(safe-area-inset-top));background:#0b1118;border-bottom:1px solid var(--line);flex:none}
+.tabs button{flex:1;max-width:220px;padding:9px 12px;border:0;border-radius:10px;background:transparent;color:var(--mut);font-weight:700;font-size:16px;cursor:pointer}
+.tabs button.on{background:var(--panel);color:var(--tx)}
+body.immersive .tabs{display:none}
+main{flex:1;min-height:0;position:relative}
+main>section{position:absolute;inset:0;overflow:auto}
+#tab-cam{overflow:hidden}
+#stage{position:absolute;inset:0;background:#000}
+#video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+#view{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.hud{position:absolute;z-index:3;pointer-events:none}
+#hudTime{top:12px;left:12px;background:rgba(0,0,0,.6);border:2px solid rgba(255,255,255,.25);border-radius:14px;padding:6px 16px;font-size:clamp(26px,4.2vw,46px);font-weight:800;font-variant-numeric:tabular-nums;direction:ltr}
+#hudTime.running{border-color:var(--warn);color:var(--warn)}
+#hudPct{top:12px;right:12px;background:rgba(0,0,0,.6);border:2px solid rgba(255,255,255,.25);border-radius:14px;padding:6px 16px 10px;min-width:190px;text-align:center}
+#hudPct b{display:block;font-size:clamp(30px,5vw,54px);line-height:1.1}
+#hudPct .bar{height:10px;border-radius:6px;background:rgba(255,255,255,.18);overflow:hidden;margin:4px 0 4px}
+#hudPct .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1ed760,#7ef0a8);transition:width .4s;margin-inline-start:auto}
+#hudPct small{font-size:13px;color:#cfd9e3}
+#hudPct.full{border-color:#1ed760;box-shadow:0 0 24px #1ed76088}
+#hudStatus,#hudWarn{top:auto;bottom:86px;right:50%;transform:translateX(50%);background:rgba(0,0,0,.7);border-radius:10px;padding:6px 12px;font-size:14px;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
+#hudWarn{bottom:122px;color:var(--warn)}
+.bar-tools{position:absolute;z-index:4;left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;background:rgba(10,16,24,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:7px;max-width:calc(100% - 20px)}
+.bar-tools button,.bar-tools select{border:0;background:rgba(255,255,255,.1);border-radius:11px;padding:10px 14px;font-weight:700;font-size:15px;cursor:pointer;white-space:nowrap}
+.bar-tools button.on{background:var(--acc);color:#04210f}
+.bar-tools button.pri{background:#2563eb}
+.bar-tools select{appearance:none;-webkit-appearance:none;padding-inline:14px}
+.bar-tools select option{color:#000}
+#editbar .hint{font-size:13px;color:#cfd9e3;max-width:360px;line-height:1.4;padding:0 6px}
+#stage.clean #toolbar>*:not(#btnHide){display:none}
+#stage.clean #toolbar{background:transparent;border-color:transparent}
+#btnHide{min-width:44px}
+#startOverlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(circle at 50% 40%,#1b2a3a,#070b10);text-align:center;padding:24px}
+#startOverlay h1{margin:0;font-size:clamp(26px,4vw,40px)}
+#startOverlay p{margin:0;color:var(--mut);max-width:560px;line-height:1.7}
+#btnStart{border:0;border-radius:18px;background:var(--acc);color:#04210f;font-size:22px;font-weight:800;padding:16px 34px;cursor:pointer}
+#toast{position:fixed;z-index:20;left:50%;top:84px;transform:translate(-50%,-20px);opacity:0;background:#111c27;border:1px solid var(--line);padding:10px 18px;border-radius:12px;transition:.25s;pointer-events:none;max-width:90%;text-align:center;font-weight:700}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#modal{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center}
+#modal[hidden]{display:none}
+#modal .box{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;min-width:300px;max-width:90%;text-align:center}
+#modal p{font-size:20px;font-weight:700;margin:0 0 20px}
+#modal .row{display:flex;gap:10px;justify-content:center}
+#modal button{border:0;border-radius:12px;padding:11px 28px;font-weight:800;font-size:17px;cursor:pointer}
+#modalYes{background:var(--acc);color:#04210f}#modalNo{background:#334155}
+/* pages */
+.page{max-width:1000px;margin:0 auto;padding:18px 16px 60px}
+.page h2{margin:6px 0 12px;font-size:22px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{border:1px solid var(--line);background:#0f1720;border-radius:999px;padding:8px 14px;font-weight:700;cursor:pointer}
+.chip small{color:var(--mut);font-weight:400}
+.chip.on{background:var(--acc);color:#04210f;border-color:var(--acc)}.chip.on small{color:#04210f}
+.btn{border:1px solid var(--line);background:#223042;border-radius:11px;padding:9px 14px;font-weight:700;cursor:pointer}
+.btn.pri{background:var(--acc);color:#04210f;border-color:var(--acc)}
+.btn.danger{background:#3a1d22;border-color:#5b2a31;color:#ffb4b4}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text],input[type=number],textarea,select{background:#0f1720;border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+textarea{width:100%;min-height:96px;resize:vertical}
+#lvlSummary{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}
+#lvlSummary span{border-inline-start:4px solid var(--c);background:#0f1720;padding:4px 10px;border-radius:8px;font-size:14px}
+#stuList{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:8px}
+#stuList li{display:flex;align-items:center;gap:8px;background:#0f1720;border:1px solid var(--line);border-radius:12px;padding:6px 8px}
+#stuList li.empty{grid-column:1/-1;color:var(--mut);justify-content:center;padding:18px}
+#stuList .num{color:var(--mut);min-width:24px;text-align:center;font-size:13px}
+#stuList .nm{flex:1;outline:none;padding:4px;border-radius:6px;font-weight:700}
+#stuList .nm:focus{background:#1d2a38}
+#stuList .lvl{width:46px;height:40px;border:0;border-radius:10px;background:var(--c);color:#fff;font-size:20px;font-weight:800;cursor:pointer;flex:none}
+#stuList .del{border:0;background:transparent;color:#8090a0;font-size:18px;cursor:pointer;padding:6px}
+#groupsView{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:10px}
+.grp{border:1px solid var(--line);border-top:5px solid var(--c);border-radius:12px;background:#0f1720;padding:8px 10px}
+.grp h4{margin:2px 0 6px}.grp ul{margin:0;padding:0;list-style:none;font-size:14px;line-height:1.9}
+.grp i{font-style:normal;background:var(--c);color:#fff;border-radius:6px;padding:0 6px;font-size:12px;margin-inline-start:4px}
+#settingsForm fieldset{border:1px solid var(--line);border-radius:14px;margin:0 0 12px;padding:10px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+#settingsForm legend{font-weight:800;padding:0 6px}
+#settingsForm label{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--mut)}
+#settingsForm label.ck{flex-direction:row;align-items:center;gap:8px;color:var(--tx)}
+#settingsForm input[type=checkbox]{width:22px;height:22px}
+.help{color:var(--mut);line-height:1.8;font-size:15px}
+.help b{color:var(--tx)}
+</style>
+</head>
+<body>
+<nav class="tabs">
+  <button data-tab="cam" class="on">📷 الكاميرا</button>
+  <button data-tab="students">👥 قوائم الطلاب</button>
+  <button data-tab="settings">⚙️ الإعدادات</button>
+</nav>
+<main>
+<section id="tab-cam">
+  <div id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="view"></canvas>
+    <div class="hud" id="hudTime">00:00</div>
+    <div class="hud" id="hudPct"><b>0٪</b><div class="bar"><i></i></div><small></small></div>
+    <div class="hud" id="hudStatus" hidden></div>
+    <div class="hud" id="hudWarn" hidden></div>
+    <div class="bar-tools" id="toolbar">
+      <button id="btnLayout" class="pri">▦ مخطط الطاولات</button>
+      <button id="btnShuffle">🔀 تغيير الترتيب</button>
+      <select id="classSel" aria-label="الصف"></select>
+      <button id="btnNames" class="on">الأسماء</button>
+      <button id="btnTimer" title="إعادة تشغيل العداد">⏱</button>
+      <button id="btnEdit">✎ ضبط المخطط</button>
+      <button id="btnFull" title="ملء الشاشة">⛶</button>
+      <button id="btnHide" title="إخفاء الأزرار">◐</button>
+    </div>
+    <div class="bar-tools" id="editbar" hidden>
+      <span class="hint">اسحب النقاط الصفراء الأربع لتطابق زوايا مجموعة الطاولات في الترتيب الأساسي، واسحب الفراغ لتحريك المخطط كله، واسحب أي طاولة لتحريكها، والمسها مرتين لتدويرها.</span>
+      <button id="btnSample">🎨 عيّنة لون الطاولة</button>
+      <button id="btnAdd">＋ طاولة</button>
+      <button id="btnRot">↻ تدوير</button>
+      <button id="btnDel">🗑 حذف</button>
+      <button id="btnDone" class="on">✔ تم</button>
+    </div>
+    <div id="startOverlay">
+      <h1>ترتيب الطاولات</h1>
+      <p>وجّه الآيباد نحو الصف، ثم اضغط الزر للسماح باستخدام الكاميرا.<br>في أول مرة: اضغط «✎ ضبط المخطط» وطابق المستطيلات البيضاء على الطاولات الحقيقية.</p>
+      <button id="btnStart">تشغيل الكاميرا</button>
+    </div>
+  </div>
+</section>
+
+<section id="tab-students" hidden>
+  <div class="page">
+    <h2>قوائم الطلاب</h2>
+    <div class="card">
+      <div class="chips" id="classChips"></div>
+      <div class="row" style="margin-top:12px">
+        <label>اسم الصف: <input type="text" id="className" style="width:160px"></label>
+        <button class="btn" id="btnAddClass">＋ صف جديد</button>
+        <button class="btn danger" id="btnDelClass">حذف هذا الصف</button>
+      </div>
+    </div>
+    <div class="card">
+      <textarea id="namesInput" placeholder="ألصق أسماء الطلاب هنا، كل اسم في سطر…"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn pri" id="btnAddNames">إضافة الأسماء</button>
+        <span class="help">اضغط زر الرقم بجانب الطالب لتغيير مستواه من ٠ إلى ٥ (بعد ٥ يرجع ٠). المستوى لا يظهر على السبورة.</span></div>
+    </div>
+    <div class="card">
+      <div id="lvlSummary"></div>
+      <ul id="stuList"></ul>
+      <div class="row" style="margin-top:10px"><button class="btn" id="btnResetLevels">تصفير المستويات</button></div>
+    </div>
+    <div class="card">
+      <div class="row"><h2 style="margin:0;flex:1">المجموعات الست الحالية</h2><button class="btn pri" id="btnRegroup">🔀 تغيير الترتيب</button></div>
+      <div id="groupsView"></div>
+    </div>
+    <div class="card row">
+      <button class="btn" id="btnExport">⬇ تصدير نسخة احتياطية</button>
+      <button class="btn" id="btnImport">⬆ استيراد نسخة</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <span class="help">البيانات محفوظة في متصفح هذا الجهاز فقط.</span>
+    </div>
+  </div>
+</section>
+
+<section id="tab-settings" hidden>
+  <div class="page">
+    <h2>الإعدادات</h2>
+    <div class="card help" id="deskCounts"></div>
+    <div id="settingsForm"></div>
+    <div class="card row">
+      <button class="btn" id="btnRegenBasic">إعادة توليد الترتيب الأساسي</button>
+      <button class="btn" id="btnRegenL">إعادة توليد ترتيب L</button>
+      <button class="btn" id="btnResetCalib">إعادة ضبط موضع المخطط</button>
+      <button class="btn" id="btnResetColor">لون الطاولة الافتراضي</button>
+      <button class="btn danger" id="btnWipe">مسح كل البيانات</button>
+    </div>
+    <div class="card help">
+      <b>طريقة الضبط أول مرة:</b><br>
+      ١. رتّب الطاولات بالترتيب الأساسي، وثبّت الآيباد في مكانه المعتاد ووجّهه نحو الصف.<br>
+      ٢. اضبط هنا عدد الكتل والصفوف ليطابق صفك، وعدد طاولات ضلعَي حرف L.<br>
+      ٣. في الكاميرا اضغط «✎ ضبط المخطط»، واسحب النقاط الصفراء حتى تنطبق المستطيلات البيضاء على الطاولات الحقيقية، ثم «🎨 عيّنة لون الطاولة» والمس سطح طاولة، ثم «✔ تم».<br>
+      ٤. بعد ذلك تُحفظ صورة مرجعية، وعند تشغيل الكاميرا لاحقاً يحاول المخطط محاذاة نفسه تلقائياً إذا وُجّه الآيباد للاتجاه نفسه تقريباً.<br>
+      <b>ملاحظات:</b> الطاولة تُعدّ في مكانها إذا غطّى سطحها الخشبي جزءاً كافياً من مستطيلها (عدّل «الحساسية» إن احتجت). الأرقام فوق الرؤوس تحتاج إنترنت لتحميل نموذج كشف الأشخاص، وتُنسب كل طاولة تصبح خضراء لأقرب طالب إليها لحظتها.
+    </div>
+  </div>
+</section>
+</main>
+
+<div id="modal" hidden><div class="box"><p id="modalText"></p><div class="row"><button id="modalYes">نعم</button><button id="modalNo">لا</button></div></div></div>
+<div id="toast"></div>
+
+<script>
+// ===== CORE (pure functions, no DOM) =====
+const Core = (() => {
+  // ---------- linear algebra ----------
+  function solve(A, b) { // Gaussian elimination, A n×n
+    const n = b.length; A = A.map(r => r.slice()); b = b.slice();
+    for (let i = 0; i < n; i++) {
+      let p = i; for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r;
+      [A[i], A[p]] = [A[p], A[i]]; [b[i], b[p]] = [b[p], b[i]];
+      const d = A[i][i]; if (Math.abs(d) < 1e-12) return null;
+      for (let r = i + 1; r < n; r++) { const k = A[r][i] / d; if (!k) continue; for (let c = i; c < n; c++) A[r][c] -= k * A[i][c]; b[r] -= k * b[i]; }
+    }
+    const x = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) { let s = b[i]; for (let c = i + 1; c < n; c++) s -= A[i][c] * x[c]; x[i] = s / A[i][i]; }
+    return x;
+  }
+  function homography(src, dst) { // src,dst: 4 points [x,y]; returns 3x3 flat (row-major)
+    const A = [], b = [];
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = src[i], [u, v] = dst[i];
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+    }
+    const h = solve(A, b); if (!h) return null;
+    const H = [...h, 1];
+    // make w positive for first source point
+    const w = H[6] * src[0][0] + H[7] * src[0][1] + H[8];
+    if (w < 0) for (let i = 0; i < 9; i++) H[i] = -H[i];
+    return H;
+  }
+  function inv3(m) {
+    const [a, b, c, d, e, f, g, h, i] = m;
+    const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
+    const det = a * A + b * B + c * C; if (Math.abs(det) < 1e-15) return null;
+    return [A / det, -(b * i - c * h) / det, (b * f - c * e) / det,
+            B / det, (a * i - c * g) / det, -(a * f - c * d) / det,
+            C / det, -(a * h - b * g) / det, (a * e - b * d) / det];
+  }
+  const mul3 = (m, x, y, z) => [m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, m[6] * x + m[7] * y + m[8] * z];
+  function rotM(yaw, pitch) { // RotY(yaw)*RotX(pitch), maps camera vectors -> reference vectors
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    // RotY=[[cy,0,sy],[0,1,0],[-sy,0,cy]] ; RotX=[[1,0,0],[0,cp,-sp],[0,sp,cp]]
+    return [cy, sy * sp, sy * cp,
+            0, cp, -sp,
+            -sy, cy * sp, cy * cp];
+  }
+  const tmul3 = (m, x, y, z) => [m[0] * x + m[3] * y + m[6] * z, m[1] * x + m[4] * y + m[7] * z, m[2] * x + m[5] * y + m[8] * z];
+
+  // ---------- image processing ----------
+  function gray(rgba, w, h) {
+    const g = new Float32Array(w * h);
+    for (let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = 0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2];
+    return g;
+  }
+  function highpass(g, w, h, r) { // g - boxblur(g), normalised by mean |.|
+    const I = new Float64Array((w + 1) * (h + 1));
+    for (let y = 0; y < h; y++) { let s = 0; for (let x = 0; x < w; x++) { s += g[y * w + x]; I[(y + 1) * (w + 1) + x + 1] = I[y * (w + 1) + x + 1] + s; } }
+    const out = new Float32Array(w * h); let m = 0;
+    for (let y = 0; y < h; y++) {
+      const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1);
+      for (let x = 0; x < w; x++) {
+        const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1);
+        const s = I[y1 * (w + 1) + x1] - I[y0 * (w + 1) + x1] - I[y1 * (w + 1) + x0] + I[y0 * (w + 1) + x0];
+        const v = g[y * w + x] - s / ((x1 - x0) * (y1 - y0)); out[y * w + x] = v; m += Math.abs(v);
+      }
+    }
+    m = m / (w * h) + 1e-3; for (let i = 0; i < out.length; i++) out[i] /= m;
+    return out;
+  }
+  function down2(a, w, h) {
+    const W = w >> 1, H = h >> 1, o = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = 2 * y * w + 2 * x; o[y * W + x] = (a[i] + a[i + 1] + a[i + w] + a[i + w + 1]) * 0.25;
+    }
+    return { d: o, w: W, h: H };
+  }
+  function pyramid(hp, w, h, n = 3) {
+    const p = [{ d: hp, w, h }];
+    for (let i = 1; i < n; i++) { const l = p[i - 1]; p.push(down2(l.d, l.w, l.h)); }
+    return p;
+  }
+  const T = 2.5;
+  function cost(A, B, w, h, sx, sy, step) { // B(x,y) ≈ A(x-sx, y-sy)
+    const x0 = Math.max(1, sx + 1), x1 = Math.min(w - 1, w + sx - 1), y0 = Math.max(1, sy + 1), y1 = Math.min(h - 1, h + sy - 1);
+    if (x1 - x0 < w * 0.45 || y1 - y0 < h * 0.45) return 1e9;
+    let s = 0, n = 0;
+    for (let y = y0; y < y1; y += step) {
+      const rb = y * w, ra = (y - sy) * w - sx;
+      for (let x = x0; x < x1; x += step) { const d = Math.abs(B[rb + x] - A[ra + x]); s += d < T ? d : T; n++; }
+    }
+    return s / n;
+  }
+  // estimate shift (in level-0 pixels) of current pyramid B relative to key pyramid A
+  function estimateShift(PA, PB, pred, wide) {
+    const L = PA.length - 1; const f = 1 << L;
+    let cx = Math.round(pred[0] / f), cy = Math.round(pred[1] / f);
+    const r = wide ? 13 : 7; const A = PA[L], B = PB[L];
+    let best = 1e9, bx = cx, by = cy, sum = 0, cnt = 0;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const c = cost(A.d, B.d, A.w, A.h, cx + dx, cy + dy, 1);
+      if (c < 1e8) { sum += c; cnt++; }
+      if (c < best) { best = c; bx = cx + dx; by = cy + dy; }
+    }
+    const ratio = cnt ? best / (sum / cnt) : 1;
+    for (let l = L - 1; l >= 0; l--) {
+      const A2 = PA[l], B2 = PB[l]; cx = bx * 2; cy = by * 2; best = 1e9;
+      const step = l === 0 ? 2 : 1;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const c = cost(A2.d, B2.d, A2.w, A2.h, cx + dx, cy + dy, step);
+        if (c < best) { best = c; bx = cx + dx; by = cy + dy; }
+      }
+    }
+    // sub-pixel refinement at level 0
+    const A0 = PA[0], B0 = PB[0], c0 = best;
+    const cxm = cost(A0.d, B0.d, A0.w, A0.h, bx - 1, by, 2), cxp = cost(A0.d, B0.d, A0.w, A0.h, bx + 1, by, 2);
+    const cym = cost(A0.d, B0.d, A0.w, A0.h, bx, by - 1, 2), cyp = cost(A0.d, B0.d, A0.w, A0.h, bx, by + 1, 2);
+    let fx = 0, fy = 0; const dxx = cxm + cxp - 2 * c0, dyy = cym + cyp - 2 * c0;
+    if (dxx > 1e-6 && cxm < 1e8 && cxp < 1e8) fx = Math.max(-0.5, Math.min(0.5, 0.5 * (cxm - cxp) / dxx));
+    if (dyy > 1e-6 && cym < 1e8 && cyp < 1e8) fy = Math.max(-0.5, Math.min(0.5, 0.5 * (cym - cyp) / dyy));
+    return { sx: bx + fx, sy: by + fy, cost: best, ratio, ok: ratio < 0.82 && best < 1.6 };
+  }
+
+  // ---------- desk colour mask ----------
+  function rgb2hsv(r, g, b) {
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0;
+    if (d > 0) { if (mx === r) h = ((g - b) / d) % 6; else if (mx === g) h = (b - r) / d + 2; else h = (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }
+    return [h, mx ? d / mx : 0, mx / 255];
+  }
+  function deskMask(rgba, w, h, c) { // c:{h,s,v,th,ts,tv}
+    const m = new Uint8Array(w * h);
+    for (let i = 0, j = 0; i < m.length; i++, j += 4) {
+      const [H, S, V] = rgb2hsv(rgba[j], rgba[j + 1], rgba[j + 2]);
+      let dh = Math.abs(H - c.h); if (dh > 180) dh = 360 - dh;
+      if (dh <= c.th && Math.abs(S - c.s) <= c.ts && Math.abs(V - c.v) <= c.tv) m[i] = 1;
+    }
+    return m;
+  }
+  function morph(m, w, h, erode) {
+    const o = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let v = erode ? 1 : 0;
+      for (let dy = -1; dy <= 1 && (erode ? v : !v); dy++) for (let dx = -1; dx <= 1; dx++) {
+        const yy = y + dy, xx = x + dx; const q = (yy < 0 || yy >= h || xx < 0 || xx >= w) ? (erode ? 1 : 0) : m[yy * w + xx];
+        if (erode && !q) { v = 0; break; } if (!erode && q) { v = 1; break; }
+      }
+      o[y * w + x] = v;
+    }
+    return o;
+  }
+  const cleanMask = (m, w, h) => morph(morph(m, w, h, true), w, h, false);
+
+  // ---------- layouts ----------
+  function genBasic(s) {
+    const b = s.basic, desks = [];
+    const blockW = b.perRow * s.deskW, total = b.blocks * blockW + (b.blocks - 1) * b.aisle;
+    const x0 = (s.roomW - total) / 2;
+    for (let k = 0; k < b.blocks; k++) for (let r = 0; r < b.rows; r++) for (let c = 0; c < b.perRow; c++) {
+      desks.push({ cx: x0 + k * (blockW + b.aisle) + (c + 0.5) * s.deskW, cy: b.front + r * b.pitch + s.deskD / 2, w: s.deskW, h: s.deskD });
+    }
+    return desks;
+  }
+  function genL(s) {
+    const L = s.L, g = L.gap, desks = [], right = L.side !== 'left';
+    const backY = s.roomD - g - s.deskD / 2;
+    // side arm: from front end towards the back corner (so the L is one continuous sequence)
+    const side = [];
+    for (let i = 0; i < L.sideCount; i++) {
+      const cy = s.roomD - g - s.deskD - (i + 0.5) * s.deskW;
+      const cx = right ? s.roomW - g - s.deskD / 2 : g + s.deskD / 2;
+      side.push({ cx, cy, w: s.deskD, h: s.deskW });
+    }
+    side.reverse(); desks.push(...side);
+    for (let i = 0; i < L.backCount; i++) {
+      const cx = right ? s.roomW - g - (i + 0.5) * s.deskW : g + (i + 0.5) * s.deskW;
+      desks.push({ cx, cy: backY, w: s.deskW, h: s.deskD });
+    }
+    return desks;
+  }
+  function chunkSizes(n, k) { const a = []; for (let i = 0; i < k; i++) a.push(Math.floor(n / k) + (i < n % k ? 1 : 0)); return a; }
+
+  // ---------- balanced grouping ----------
+  function shuffle(a, rnd = Math.random) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function makeGroups(students, caps, rnd = Math.random) {
+    const k = caps.length, groups = caps.map(() => []), lvlCount = caps.map(() => new Array(6).fill(0));
+    const byLevel = [0, 1, 2, 3, 4, 5].map(l => shuffle(students.filter(s => (s.level | 0) === l), rnd));
+    const order = [];
+    for (let l = 5; l >= 0; l--) order.push(...byLevel[l]);
+    for (const s of order) {
+      const L = s.level | 0; let best = -1, bk = null;
+      const idx = shuffle([...Array(k).keys()], rnd);
+      for (const g of idx) {
+        const cap = Math.max(caps[g], 0.0001), over = groups[g].length >= caps[g] ? 1 : 0;
+        const key = [over, lvlCount[g][L], groups[g].length / cap];
+        if (!bk || key[0] < bk[0] || (key[0] === bk[0] && (key[1] < bk[1] || (key[1] === bk[1] && key[2] < bk[2])))) { bk = key; best = g; }
+      }
+      groups[best].push(s.id); lvlCount[best][L]++;
+    }
+    return groups.map(g => shuffle(g, rnd));
+  }
+
+  return { solve, homography, inv3, mul3, tmul3, rotM, gray, highpass, down2, pyramid, estimateShift, rgb2hsv, deskMask, cleanMask, genBasic, genL, chunkSizes, makeGroups, shuffle };
+})();
+if (typeof module !== 'undefined') module.exports = Core;
+
+</script>
+<script>
+// ===== APP =====
+(() => {
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const KEY = 'classTables.v1';
+const uid = () => Math.random().toString(36).slice(2, 9);
+const nf = new Intl.NumberFormat('ar-EG');
+const GCOL = ['#ff5d5d', '#ffd23f', '#3ddc84', '#4da3ff', '#c77dff', '#ff9f43'];
+const TFJS = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js';
+const COCO = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js';
+
+// ---------------- state ----------------
+function defaults() {
+  return {
+    settings: {
+      roomW: 9, roomD: 10, deskW: 0.65, deskD: 0.45,
+      basic: { blocks: 3, perRow: 2, rows: 5, aisle: 0.9, pitch: 1.25, front: 1.8 },
+      L: { side: 'right', sideCount: 14, backCount: 13, gap: 0.05 },
+      hfov: 63, thresh: 0.35, color: { h: 28, s: 0.32, v: 0.82, th: 14, ts: 0.2, tv: 0.3 },
+      detect: true, showMask: true, facing: 'environment'
+    },
+    classes: ['تاسع5', 'تاسع6', 'تاسع7', 'تاسع8'].map(n => ({ id: uid(), name: n, students: [], groups: null })),
+    currentClass: null, layout: 'basic', layouts: null, calib: null
+  };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+if (!S || !S.settings) S = defaults();
+{ const d = defaults(); S.settings = Object.assign(d.settings, S.settings); S.settings.basic = Object.assign(d.settings.basic, S.settings.basic); S.settings.L = Object.assign(d.settings.L, S.settings.L); S.settings.color = Object.assign(d.settings.color, S.settings.color); }
+if (!S.classes || !S.classes.length) S.classes = defaults().classes;
+if (!S.currentClass || !S.classes.find(c => c.id === S.currentClass)) S.currentClass = S.classes[0].id;
+if (!S.layouts) S.layouts = { basic: Core.genBasic(S.settings), L: Core.genL(S.settings) };
+if (!S.calib) S.calib = defaultCalib();
+let saveT = 0;
+function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('تعذر الحفظ في المتصفح'); } }, 200); }
+
+function basicBBox() {
+  const d = S.layouts.basic.length ? S.layouts.basic : Core.genBasic(S.settings);
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const k of d) { x0 = Math.min(x0, k.cx - k.w / 2); x1 = Math.max(x1, k.cx + k.w / 2); y0 = Math.min(y0, k.cy - k.h / 2); y1 = Math.max(y1, k.cy + k.h / 2); }
+  return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+}
+function defaultCalib() {
+  return { room: basicBBox(), norm: [[-0.5, 0.42], [0.5, 0.42], [0.33, -0.04], [-0.33, -0.04]], snap: null };
+}
+const cls = () => S.classes.find(c => c.id === S.currentClass);
+const desks = () => S.layouts[S.layout];
+
+// ---------------- runtime ----------------
+const rt = {
+  tab: 'cam', stream: null, pw: 160, ph: 120, F: 130, pose: [0, 0], key: null, keyPose: [0, 0], last: [0, 0], bad: 0,
+  cur: null, rgba: null, mask: null, ds: [], tracks: [], nextId: 1, timer: { start: 0, end: 0 }, sessionStart: 0,
+  edit: false, sample: false, sel: -1, names: true, model: null, modelLoading: false, detecting: false, lastDet: 0,
+  H: null, Hinv: null, M: Core.rotM(0, 0), disp: { s: 1, ox: 0, oy: 0 }, flashes: [], done: false
+};
+function updateH() {
+  rt.H = Core.homography(S.calib.room, S.calib.norm);
+  rt.Hinv = rt.H && Core.inv3(rt.H);
+}
+updateH();
+
+// projection helpers (proc pixel space)
+function project(X, Y) {
+  if (!rt.H) return null;
+  const n = Core.mul3(rt.H, X, Y, 1); if (n[2] <= 0) return null;
+  const c = Core.tmul3(rt.M, n[0] / n[2], n[1] / n[2], 1); if (c[2] <= 0.05) return null;
+  return [rt.F * c[0] / c[2] + rt.pw / 2, rt.F * c[1] / c[2] + rt.ph / 2];
+}
+function refToProc(r, M = rt.M) { const c = Core.tmul3(M, r[0], r[1], 1); if (c[2] <= 0.05) return null; return [rt.F * c[0] / c[2] + rt.pw / 2, rt.F * c[1] / c[2] + rt.ph / 2]; }
+function procToRef(u, v, M = rt.M) { const r = Core.mul3(M, (u - rt.pw / 2) / rt.F, (v - rt.ph / 2) / rt.F, 1); if (r[2] <= 0.02) return null; return [r[0] / r[2], r[1] / r[2]]; }
+function procToRoom(u, v) { const n = procToRef(u, v); if (!n || !rt.Hinv) return null; const r = Core.mul3(rt.Hinv, n[0], n[1], 1); if (Math.abs(r[2]) < 1e-9) return null; return [r[0] / r[2], r[1] / r[2]]; }
+const toDisp = p => [rt.disp.ox + p[0] * rt.disp.s, rt.disp.oy + p[1] * rt.disp.s];
+const toProc = (x, y) => [(x - rt.disp.ox) / rt.disp.s, (y - rt.disp.oy) / rt.disp.s];
+function deskPoly(d) {
+  const pts = [[d.cx - d.w / 2, d.cy - d.h / 2], [d.cx + d.w / 2, d.cy - d.h / 2], [d.cx + d.w / 2, d.cy + d.h / 2], [d.cx - d.w / 2, d.cy + d.h / 2]].map(p => project(p[0], p[1]));
+  return pts.some(p => !p) ? null : pts;
+}
+
+// ---------------- tabs ----------------
+$$('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(t) {
+  rt.tab = t;
+  $$('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  $$('main > section').forEach(s => s.hidden = s.id !== 'tab-' + t);
+  if (t === 'students') renderStudents();
+  if (t === 'settings') renderSettings();
+  if (t === 'cam') { refreshToolbar(); }
+}
+
+// ---------------- toast / modal ----------------
+let toastT = 0;
+function toast(msg, ms = 2600) { const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), ms); }
+function confirmBox(text, yes, yesLabel = 'نعم') {
+  $('#modalText').textContent = text; $('#modalYes').textContent = yesLabel; $('#modal').hidden = false;
+  $('#modalYes').onclick = () => { $('#modal').hidden = true; yes(); };
+  $('#modalNo').onclick = () => { $('#modal').hidden = true; };
+}
+
+// ---------------- grouping ----------------
+function makeGroupsFor(c) {
+  const caps = Core.chunkSizes(c.students.length, 6);
+  c.groups = Core.makeGroups(c.students, caps);
+  save();
+}
+function ensureGroups(c) {
+  const ids = new Set(c.students.map(s => s.id));
+  if (!c.groups || c.groups.length !== 6) { makeGroupsFor(c); return; }
+  let changed = false;
+  c.groups = c.groups.map(g => { const f = g.filter(id => ids.has(id)); if (f.length !== g.length) changed = true; return f; });
+  const inG = new Set(c.groups.flat());
+  for (const s of c.students) if (!inG.has(s.id)) {
+    // put newcomer in the smallest group that has fewest of their level
+    const lv = id => (c.students.find(x => x.id === id) || {}).level | 0;
+    let best = 0, bk = null;
+    c.groups.forEach((g, i) => { const k = [g.length, g.filter(id => lv(id) === (s.level | 0)).length]; if (!bk || k[0] < bk[0] || (k[0] === bk[0] && k[1] < bk[1])) { bk = k; best = i; } });
+    c.groups[best].push(s.id); changed = true;
+  }
+  if (changed) save();
+}
+function seating() { // returns {byDesk: [{name, g}], unseated: [names]}
+  const c = cls(), D = desks(), out = new Array(D.length).fill(null), un = [];
+  if (!c || !c.students.length) return { byDesk: out, unseated: un };
+  ensureGroups(c);
+  const sizes = Core.chunkSizes(D.length, 6); let start = 0;
+  const byId = Object.fromEntries(c.students.map(s => [s.id, s]));
+  c.groups.forEach((g, gi) => {
+    g.forEach((id, j) => { const st = byId[id]; if (!st) return; if (j < sizes[gi]) out[start + j] = { name: st.name, g: gi }; else un.push(st.name); });
+    start += sizes[gi];
+  });
+  return { byDesk: out, unseated: un };
+}
+
+// ---------------- camera ----------------
+const video = $('#video'), view = $('#view'), vctx = view.getContext('2d');
+const proc = document.createElement('canvas'), pctx = proc.getContext('2d', { willReadFrequently: true });
+const mcan = document.createElement('canvas'), mctx = mcan.getContext('2d');
+
+async function startCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast('المتصفح لا يدعم الكاميرا. افتح الصفحة من رابط https (مثل GitHub Pages) في Safari.', 6000); return; }
+  try {
+    if (rt.stream) rt.stream.getTracks().forEach(t => t.stop());
+    rt.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: S.settings.facing }, width: { ideal: 1920 }, height: { ideal: 1440 } } });
+    video.srcObject = rt.stream; await video.play();
+    $('#startOverlay').hidden = true;
+    rt.key = null; rt.started = false;
+    if (S.settings.detect) loadModel();
+  } catch (e) { toast('تعذر تشغيل الكاميرا: ' + (e.message || e.name), 6000); }
+}
+$('#btnStart').onclick = startCamera;
+
+function setupProc() {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  rt.pw = 160; rt.ph = Math.round(160 * vh / vw);
+  proc.width = mcan.width = rt.pw; proc.height = mcan.height = rt.ph;
+  rt.vw = vw; rt.vh = vh;
+}
+function updateF() { rt.F = (rt.pw / 2) / Math.tan(S.settings.hfov * Math.PI / 360); }
+
+function snapEncode(P) {
+  const d = P[0].d, a = new Int8Array(d.length);
+  for (let i = 0; i < d.length; i++) a[i] = Math.max(-127, Math.min(127, Math.round(d[i] * 20)));
+  let s = ''; const u = new Uint8Array(a.buffer); for (let i = 0; i < u.length; i += 8192) s += String.fromCharCode.apply(null, u.subarray(i, i + 8192));
+  return btoa(s);
+}
+function snapDecode(sn) {
+  const b = atob(sn.data), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  const a = new Int8Array(u.buffer), f = new Float32Array(a.length); for (let i = 0; i < a.length; i++) f[i] = a[i] / 20;
+  return Core.pyramid(f, sn.w, sn.h, 3);
+}
+function saveSnapshot() {
+  if (!rt.cur) return;
+  S.calib.snap = { data: snapEncode(rt.cur), w: rt.pw, h: rt.ph, pose: rt.pose.slice() }; save();
+}
+
+function track() {
+  const { pw, ph } = rt;
+  pctx.drawImage(video, 0, 0, pw, ph);
+  const img = pctx.getImageData(0, 0, pw, ph); rt.rgba = img.data;
+  const P = Core.pyramid(Core.highpass(Core.gray(rt.rgba, pw, ph), pw, ph, 3), pw, ph, 3); rt.cur = P;
+  if (!rt.key) {
+    rt.pose = [0, 0];
+    const sn = S.calib.snap;
+    if (sn && sn.w === pw && sn.h === ph) {
+      try {
+        const r = Core.estimateShift(snapDecode(sn), P, [0, 0], true);
+        if (r.ratio < 0.85 && r.cost < 1.8) { rt.pose = [sn.pose[0] - Math.atan(r.sx / rt.F), sn.pose[1] + Math.atan(r.sy / rt.F)]; toast('تمت محاذاة المخطط تلقائياً ✔'); }
+        else toast('لم تنجح المحاذاة التلقائية: وجّه الآيباد كما كان عند الضبط، أو اضغط «ضبط المخطط»', 5000);
+      } catch (e) { }
+    }
+    rt.key = P; rt.keyPose = rt.pose.slice(); rt.last = [0, 0]; rt.bad = 0;
+  } else {
+    const r = Core.estimateShift(rt.key, P, rt.last, false);
+    if (r.ok) {
+      rt.bad = 0; rt.last = [r.sx, r.sy];
+      rt.pose = [rt.keyPose[0] - Math.atan(r.sx / rt.F), rt.keyPose[1] + Math.atan(r.sy / rt.F)];
+      if (Math.abs(r.sx) > 0.15 * pw || Math.abs(r.sy) > 0.15 * ph || r.cost > 1.05) { rt.key = P; rt.keyPose = rt.pose.slice(); rt.last = [0, 0]; }
+    } else if (++rt.bad >= 6) { rt.key = P; rt.keyPose = rt.pose.slice(); rt.last = [0, 0]; rt.bad = 0; }
+  }
+  rt.M = Core.rotM(rt.pose[0], rt.pose[1]);
+}
+
+function evalDesks(t) {
+  const { pw, ph } = rt, s = S.settings;
+  rt.mask = Core.cleanMask(Core.deskMask(rt.rgba, pw, ph, s.color), pw, ph);
+  const D = desks();
+  if (rt.ds.length !== D.length) rt.ds = D.map(() => ({ f: 0, green: false, on: 0, off: 0, credited: false }));
+  const active = !!rt.timer.start && !rt.edit;
+  D.forEach((d, i) => {
+    const st = rt.ds[i]; let inF = 0, hit = 0, tot = 0;
+    for (let a = 0; a < 5; a++) for (let b = 0; b < 4; b++) {
+      const X = d.cx + ((a + 0.5) / 5 - 0.5) * d.w * 0.8, Y = d.cy + ((b + 0.5) / 4 - 0.5) * d.h * 0.8; tot++;
+      const p = project(X, Y); if (!p) continue;
+      const u = Math.round(p[0]), v = Math.round(p[1]);
+      if (u < 1 || v < 1 || u >= pw - 1 || v >= ph - 1) continue;
+      inF++; if (rt.mask[v * pw + u]) hit++;
+    }
+    if (inF < tot * 0.6) return; // not (enough) in view: keep last state
+    st.f = st.f * 0.6 + (hit / inF) * 0.4;
+    const on = st.green ? st.f > s.thresh * 0.7 : st.f > s.thresh;
+    if (on) {
+      st.off = 0; if (!st.on) st.on = t;
+      if (!st.green && t - st.on > 600) {
+        st.green = true;
+        if (active && !st.credited) { st.credited = true; if (t - rt.sessionStart > 1500) credit(i, t); }
+      }
+    } else {
+      st.on = 0; if (!st.off) st.off = t;
+      if (st.green && t - st.off > 1200) st.green = false;
+      if (!st.green && t - st.off > 3000) st.credited = false;
+    }
+  });
+}
+
+// ---------------- people detection ----------------
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.crossOrigin = 'anonymous'; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+async function loadModel() {
+  if (rt.model || rt.modelLoading) return; rt.modelLoading = true; setStatus('جارٍ تحميل نموذج كشف الطلاب…');
+  try {
+    if (!window.tf) await loadScript(TFJS);
+    if (!window.cocoSsd) await loadScript(COCO);
+    rt.model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+    setStatus('');
+  } catch (e) { setStatus('تعذر تحميل نموذج كشف الطلاب (يحتاج إنترنت) — الأرقام فوق الرؤوس متوقفة'); }
+  rt.modelLoading = false;
+}
+function detect(t) {
+  if (!rt.model || rt.detecting || t - rt.lastDet < 220 || !S.settings.detect) return;
+  rt.detecting = true; rt.lastDet = t;
+  const M = rt.M, k = rt.pw / rt.vw;
+  rt.model.detect(video, 25, 0.4).then(res => {
+    const now = performance.now();
+    const dets = res.filter(r => r.class === 'person').map(r => {
+      const [x, y, w, h] = r.bbox.map(v => v * k);
+      return { c: procToRef(x + w / 2, y + h / 2, M), head: procToRef(x + w / 2, y + Math.min(h, w) * 0.08, M), w, h };
+    }).filter(d => d.c && d.head);
+    // greedy matching
+    const pairs = [];
+    dets.forEach((d, di) => rt.tracks.forEach((tr, ti) => {
+      const p = refToProc(tr.c, M), q = refToProc(d.c, M); if (!p || !q) return;
+      const dist = Math.hypot(p[0] - q[0], p[1] - q[1]);
+      if (dist < Math.max(0.7 * Math.max(d.w, tr.w), 5)) pairs.push([dist, di, ti]);
+    }));
+    pairs.sort((a, b) => a[0] - b[0]);
+    const ud = new Set(), ut = new Set();
+    for (const [, di, ti] of pairs) {
+      if (ud.has(di) || ut.has(ti)) continue; ud.add(di); ut.add(ti);
+      const tr = rt.tracks[ti], d = dets[di];
+      Object.assign(tr, { c: d.c, head: d.head, w: d.w, h: d.h, seen: now });
+    }
+    dets.forEach((d, di) => { if (!ud.has(di)) rt.tracks.push({ id: rt.nextId++, count: 0, c: d.c, head: d.head, w: d.w, h: d.h, seen: now }); });
+    rt.tracks = rt.tracks.filter(tr => now - tr.seen < (tr.count ? 600000 : 4000));
+    // merge duplicate tracks sitting on the same person
+    for (let i = 0; i < rt.tracks.length; i++) for (let j = i + 1; j < rt.tracks.length; j++) {
+      const a = rt.tracks[i], b = rt.tracks[j]; if (!a || !b) continue;
+      const p = refToProc(a.c, M), q = refToProc(b.c, M); if (!p || !q) continue;
+      if (Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.3 * Math.min(a.w, b.w)) {
+        const keep = a.seen >= b.seen ? a : b, drop = keep === a ? b : a;
+        keep.count = Math.max(keep.count, 0) + drop.count; rt.tracks[rt.tracks.indexOf(drop)] = null;
+      }
+    }
+    rt.tracks = rt.tracks.filter(Boolean);
+  }).catch(() => { }).finally(() => { rt.detecting = false; });
+}
+function credit(i, t) {
+  const d = desks()[i], c = project(d.cx, d.cy); if (!c) return;
+  let best = null, bd = 1e9;
+  for (const tr of rt.tracks) {
+    if (t - tr.seen > 1500) continue;
+    const p = refToProc(tr.c); if (!p) continue;
+    const x0 = p[0] - tr.w / 2, x1 = p[0] + tr.w / 2, y0 = p[1] - tr.h / 2, y1 = p[1] + tr.h / 2;
+    const dx = Math.max(x0 - c[0], 0, c[0] - x1), dy = Math.max(y0 - c[1], 0, c[1] - y1);
+    const dist = Math.hypot(dx, dy) / tr.h;
+    if (dist < bd) { bd = dist; best = tr; }
+  }
+  if (best && bd < 1.2) { best.count++; best.flash = t; }
+  rt.flashes.push({ i, t });
+}
+
+// ---------------- drawing ----------------
+function resize() {
+  const st = $('#stage'), W = st.clientWidth, H = st.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (view.width !== Math.round(W * dpr) || view.height !== Math.round(H * dpr)) { view.width = Math.round(W * dpr); view.height = Math.round(H * dpr); }
+  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const s = Math.min(W / rt.pw, H / rt.ph);
+  rt.disp = { s, ox: (W - rt.pw * s) / 2, oy: (H - rt.ph * s) / 2, W, H };
+}
+function poly(ctx, P) { ctx.beginPath(); P.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); }
+function fitText(ctx, text, maxW, maxH) {
+  let fs = Math.min(30, maxH); ctx.font = `700 ${fs}px Tajawal, "Geeza Pro", system-ui, sans-serif`;
+  const w = ctx.measureText(text).width; if (w > maxW) fs = Math.max(8, fs * maxW / w);
+  ctx.font = `700 ${fs}px Tajawal, "Geeza Pro", system-ui, sans-serif`; return fs;
+}
+function shortName(n) { const p = n.trim().split(/\s+/); return p.slice(0, 2).join(' '); }
+
+function draw(t) {
+  const ctx = vctx, { W, H } = rt.disp;
+  ctx.clearRect(0, 0, W, H);
+  if (!rt.stream || !rt.vw) return;
+  const { s, ox, oy } = rt.disp;
+  ctx.drawImage(video, ox, oy, rt.pw * s, rt.ph * s);
+  if (!rt.planOn) return;
+  // red shading of real desks
+  if (S.settings.showMask && rt.mask) {
+    const id = mctx.createImageData(rt.pw, rt.ph), d = id.data;
+    for (let i = 0; i < rt.mask.length; i++) if (rt.mask[i]) { const j = i * 4; d[j] = 255; d[j + 1] = 30; d[j + 2] = 30; d[j + 3] = 115; }
+    mctx.putImageData(id, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(mcan, ox, oy, rt.pw * s, rt.ph * s);
+  }
+  const D = desks(), seat = rt.names ? seating().byDesk : [];
+  ctx.lineJoin = 'round'; ctx.direction = 'rtl'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  D.forEach((d, i) => {
+    const P0 = deskPoly(d); if (!P0) return;
+    const P = P0.map(toDisp), st = rt.ds[i];
+    poly(ctx, P);
+    if (st && st.green) { ctx.fillStyle = 'rgba(30,220,90,0.45)'; ctx.fill(); }
+    const fl = rt.flashes.find(f => f.i === i && t - f.t < 900);
+    if (fl) { ctx.fillStyle = `rgba(255,255,255,${0.6 * (1 - (t - fl.t) / 900)})`; ctx.fill(); }
+    ctx.strokeStyle = rt.edit && i === rt.sel ? '#ffd23f' : '#fff'; ctx.lineWidth = rt.edit && i === rt.sel ? 4 : 2.2; ctx.stroke();
+    const cx = (P[0][0] + P[1][0] + P[2][0] + P[3][0]) / 4, cy = (P[0][1] + P[1][1] + P[2][1] + P[3][1]) / 4;
+    const wpx = Math.hypot((P[1][0] + P[2][0] - P[0][0] - P[3][0]) / 2, (P[1][1] + P[2][1] - P[0][1] - P[3][1]) / 2);
+    const hpx = Math.hypot((P[3][0] + P[2][0] - P[0][0] - P[1][0]) / 2, (P[3][1] + P[2][1] - P[0][1] - P[1][1]) / 2);
+    const sv = seat[i];
+    if (sv) {
+      const txt = shortName(sv.name), fs = fitText(ctx, txt, wpx * 0.9, Math.max(hpx * 0.55, 10));
+      ctx.lineWidth = Math.max(2, fs / 5); ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.strokeText(txt, cx, cy); ctx.fillStyle = '#fff'; ctx.fillText(txt, cx, cy);
+      const r = Math.max(5, fs * 0.42), bx = cx, by = cy - fs * 0.6 - r;
+      ctx.beginPath(); ctx.arc(bx, by, r, 0, 7); ctx.fillStyle = GCOL[sv.g]; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#000'; ctx.stroke();
+      ctx.font = `800 ${r * 1.3}px system-ui, sans-serif`; ctx.fillStyle = '#000'; ctx.fillText(nf.format(sv.g + 1), bx, by + 0.5);
+    } else if (rt.edit) {
+      ctx.font = `700 ${Math.max(10, Math.min(18, hpx * 0.5))}px system-ui`; ctx.fillStyle = '#fff'; ctx.fillText(nf.format(i + 1), cx, cy);
+    }
+  });
+  rt.flashes = rt.flashes.filter(f => t - f.t < 900);
+  // edit handles
+  if (rt.edit) {
+    S.calib.room.forEach((r, i) => {
+      const p = project(r[0], r[1]); if (!p) return; const q = toDisp(p);
+      ctx.beginPath(); ctx.arc(q[0], q[1], 16, 0, 7); ctx.fillStyle = 'rgba(255,210,63,.35)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#ffd23f'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(q[0], q[1], 3, 0, 7); ctx.fillStyle = '#ffd23f'; ctx.fill();
+    });
+  }
+  // counters above heads
+  if (S.settings.detect && rt.timer.start) {
+    const vis = rt.tracks.filter(tr => t - tr.seen < 2500);
+    const max = Math.max(0, ...rt.tracks.map(tr => tr.count));
+    for (const tr of vis) {
+      const p = refToProc(tr.head); if (!p) continue; const q = toDisp(p);
+      const top = max > 0 && tr.count === max, R = Math.max(15, Math.min(30, tr.h * s * 0.07));
+      const by = q[1] - R - 6;
+      if (top) {
+        const c = refToProc(tr.c); if (c) { const cq = toDisp(c), w = tr.w * s, h = tr.h * s; ctx.lineWidth = 4; ctx.strokeStyle = '#ffd23f'; ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = 18; ctx.strokeRect(cq[0] - w / 2, cq[1] - h / 2, w, h); ctx.shadowBlur = 0; }
+      }
+      const pulse = tr.flash && t - tr.flash < 700 ? 1 + 0.35 * Math.sin((t - tr.flash) / 700 * Math.PI) : 1;
+      ctx.beginPath(); ctx.arc(q[0], by, R * pulse, 0, 7);
+      ctx.fillStyle = top ? '#ffd23f' : tr.count ? '#1ed760' : 'rgba(255,255,255,.75)'; ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = '#000'; ctx.stroke();
+      ctx.font = `800 ${R * 1.15}px system-ui, sans-serif`; ctx.fillStyle = '#000'; ctx.fillText(nf.format(tr.count), q[0], by + 1);
+      if (top) { ctx.font = `${R * 1.1}px system-ui`; ctx.fillText('👑', q[0], by - R * 1.55); }
+    }
+  }
+}
+
+// ---------------- HUD ----------------
+function fmtTime(ms) { const s = Math.floor(ms / 1000); return nf.format(Math.floor(s / 60)).padStart(2, nf.format(0)) + ':' + nf.format(s % 60).padStart(2, nf.format(0)); }
+function setStatus(m) { const el = $('#hudStatus'); el.textContent = m; el.hidden = !m; }
+function hud(t) {
+  const tm = rt.timer; $('#hudTime').textContent = tm.start ? fmtTime((tm.end || t) - tm.start) : fmtTime(0);
+  $('#hudTime').classList.toggle('running', !!tm.start && !tm.end);
+  const D = desks(), g = rt.ds.filter(d => d.green).length, pct = D.length ? Math.round(100 * g / D.length) : 0;
+  $('#hudPct b').textContent = nf.format(pct) + '٪';
+  $('#hudPct i').style.width = pct + '%';
+  $('#hudPct small').textContent = (S.layout === 'L' ? 'ترتيب حرف L' : 'الترتيب الأساسي') + ' — ' + nf.format(g) + ' من ' + nf.format(D.length);
+  $('#hudPct').classList.toggle('full', pct === 100);
+  if (tm.start && !tm.end && pct === 100 && t - tm.start > 2000) { tm.end = t; toast('أحسنتم! اكتمل ترتيب الطاولات ✔', 4000); }
+}
+
+// ---------------- main loop ----------------
+function loop(t) {
+  requestAnimationFrame(loop);
+  if (rt.tab !== 'cam') return;
+  resize();
+  if (rt.stream && video.readyState >= 2 && video.videoWidth) {
+    if (video.videoWidth !== rt.vw || video.videoHeight !== rt.vh) { setupProc(); rt.key = null; }
+    updateF();
+    track();
+    if (rt.planOn) { evalDesks(t); detect(t); }
+  }
+  draw(t); hud(t);
+}
+requestAnimationFrame(loop);
+rt.planOn = true;
+
+// ---------------- toolbar ----------------
+function refreshToolbar() {
+  $('#btnLayout').innerHTML = S.layout === 'L' ? '▦ مخطط الطاولات: <b>L</b> ⇦ أساسي' : '▦ مخطط الطاولات: <b>أساسي</b> ⇦ L';
+  const sel = $('#classSel'); sel.innerHTML = S.classes.map(c => `<option value="${c.id}">${esc(c.name)} (${nf.format(c.students.length)})</option>`).join('');
+  sel.value = S.currentClass;
+  $('#btnNames').classList.toggle('on', rt.names);
+  const un = seating().unseated; $('#hudWarn').hidden = !un.length;
+  $('#hudWarn').textContent = un.length ? `⚠ ${nf.format(un.length)} طالب بلا طاولة (عدد الطاولات أقل): ${un.slice(0, 4).join('، ')}${un.length > 4 ? '…' : ''}` : '';
+}
+$('#btnLayout').onclick = () => {
+  S.layout = S.layout === 'L' ? 'basic' : 'L'; save();
+  rt.ds = []; rt.tracks.forEach(tr => tr.count = 0); rt.tracks = rt.tracks.filter(tr => performance.now() - tr.seen < 4000);
+  const now = performance.now(); rt.timer = { start: now, end: 0 }; rt.sessionStart = now; rt.done = false;
+  refreshToolbar();
+};
+$('#btnShuffle').onclick = () => {
+  const c = cls(); if (!c.students.length) { toast('أضف أسماء طلاب هذا الصف أولاً من تبويبة «قوائم الطلاب»'); return; }
+  confirmBox('هل أنت متأكد من تغيير الترتيب؟', () => { makeGroupsFor(c); refreshToolbar(); toast('تم توزيع الطلاب على ٦ مجموعات جديدة'); });
+};
+$('#classSel').onchange = e => { S.currentClass = e.target.value; save(); refreshToolbar(); };
+$('#btnNames').onclick = () => { rt.names = !rt.names; refreshToolbar(); };
+$('#btnTimer').onclick = () => { const now = performance.now(); rt.timer = { start: now, end: 0 }; rt.sessionStart = now; rt.ds.forEach(d => d.credited = d.green); rt.tracks.forEach(tr => tr.count = 0); };
+$('#btnHide').onclick = () => { $('#stage').classList.toggle('clean'); };
+$('#btnFull').onclick = () => {
+  const el = document.documentElement;
+  if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+  else if (el.requestFullscreen || el.webkitRequestFullscreen) { (el.requestFullscreen || el.webkitRequestFullscreen).call(el); }
+  document.body.classList.toggle('immersive');
+};
+$('#btnEdit').onclick = () => setEdit(!rt.edit);
+function setEdit(on) {
+  rt.edit = on; rt.sample = false; rt.sel = -1;
+  $('#editbar').hidden = !on; $('#toolbar').hidden = on;
+  if (!on) { saveSnapshot(); save(); toast('تم حفظ ضبط المخطط'); }
+}
+$('#btnDone').onclick = () => setEdit(false);
+$('#btnSample').onclick = () => { rt.sample = !rt.sample; $('#btnSample').classList.toggle('on', rt.sample); if (rt.sample) toast('المس سطح طاولة حقيقية لأخذ لونها'); };
+$('#btnAdd').onclick = () => {
+  const p = procToRoom(rt.pw / 2, rt.ph / 2) || [S.settings.roomW / 2, S.settings.roomD / 2];
+  desks().push({ cx: p[0], cy: p[1], w: S.settings.deskW, h: S.settings.deskD }); rt.sel = desks().length - 1; rt.ds = []; save(); refreshToolbar();
+};
+$('#btnDel').onclick = () => { if (rt.sel < 0) { toast('اختر طاولة أولاً بلمسها'); return; } desks().splice(rt.sel, 1); rt.sel = -1; rt.ds = []; save(); refreshToolbar(); };
+$('#btnRot').onclick = () => { if (rt.sel < 0) { toast('اختر طاولة أولاً بلمسها'); return; } const d = desks()[rt.sel];[d.w, d.h] = [d.h, d.w]; save(); };
+
+// ---------------- edit gestures ----------------
+let drag = null;
+function inPoly(x, y, P) { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { if (((P[i][1] > y) !== (P[j][1] > y)) && (x < (P[j][0] - P[i][0]) * (y - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0])) c = !c; } return c; }
+view.addEventListener('pointerdown', e => {
+  if (!rt.edit || !rt.vw) return;
+  const r = view.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, pp = toProc(x, y);
+  if (rt.sample) { sampleColor(pp); return; }
+  view.setPointerCapture(e.pointerId);
+  // handles
+  for (let i = 0; i < 4; i++) {
+    const p = project(...S.calib.room[i]); if (!p) continue; const q = toDisp(p);
+    if (Math.hypot(q[0] - x, q[1] - y) < 34) { drag = { type: 'h', i }; return; }
+  }
+  const D = desks();
+  for (let i = D.length - 1; i >= 0; i--) {
+    const P = deskPoly(D[i]); if (!P) continue;
+    if (inPoly(x, y, P.map(toDisp))) {
+      const now = performance.now();
+      if (rt.sel === i && drag === null && rt.lastTap && now - rt.lastTap < 320) { const d = D[i];[d.w, d.h] = [d.h, d.w]; save(); }
+      rt.lastTap = now; rt.sel = i;
+      const rm = procToRoom(...pp); if (!rm) return;
+      drag = { type: 'd', i, r0: rm, c0: [D[i].cx, D[i].cy] }; return;
+    }
+  }
+  rt.sel = -1;
+  drag = { type: 'all', x0: x, y0: y, start: S.calib.room.map(rr => { const p = project(rr[0], rr[1]); return p ? toDisp(p) : null; }), norm0: S.calib.norm.map(n => n.slice()) };
+});
+view.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const r = view.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (drag.type === 'h') { const n = procToRef(...toProc(x, y)); if (n) { S.calib.norm[drag.i] = n; updateH(); } }
+  else if (drag.type === 'd') { const rm = procToRoom(...toProc(x, y)); if (rm) { const d = desks()[drag.i]; d.cx = drag.c0[0] + rm[0] - drag.r0[0]; d.cy = drag.c0[1] + rm[1] - drag.r0[1]; } }
+  else if (drag.type === 'all') {
+    const dx = x - drag.x0, dy = y - drag.y0;
+    S.calib.norm = drag.start.map((q, i) => { if (!q) return drag.norm0[i]; const n = procToRef(...toProc(q[0] + dx, q[1] + dy)); return n || drag.norm0[i]; });
+    updateH();
+  }
+});
+const endDrag = () => { if (drag) { drag = null; save(); } };
+view.addEventListener('pointerup', endDrag); view.addEventListener('pointercancel', endDrag);
+
+function sampleColor(pp) {
+  const u = Math.round(pp[0]), v = Math.round(pp[1]); if (!rt.rgba || u < 2 || v < 2 || u >= rt.pw - 2 || v >= rt.ph - 2) return;
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const j = ((v + dy) * rt.pw + u + dx) * 4; r += rt.rgba[j]; g += rt.rgba[j + 1]; b += rt.rgba[j + 2]; n++; }
+  const [h, s, val] = Core.rgb2hsv(r / n, g / n, b / n);
+  Object.assign(S.settings.color, { h: Math.round(h), s: +s.toFixed(2), v: +val.toFixed(2) }); save();
+  rt.sample = false; $('#btnSample').classList.remove('on');
+  toast(`تم أخذ لون الطاولة ✔ (${Math.round(h)}°)`);
+}
+
+// ---------------- students tab ----------------
+const esc = s => String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+const LVCOL = ['#6b7280', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
+function renderStudents() {
+  const c = cls();
+  $('#classChips').innerHTML = S.classes.map(k => `<button class="chip ${k.id === S.currentClass ? 'on' : ''}" data-id="${k.id}">${esc(k.name)} <small>${nf.format(k.students.length)}</small></button>`).join('');
+  $$('#classChips .chip').forEach(b => b.onclick = () => { S.currentClass = b.dataset.id; save(); renderStudents(); });
+  $('#className').value = c.name;
+  const counts = [0, 0, 0, 0, 0, 0]; c.students.forEach(s => counts[s.level | 0]++);
+  $('#lvlSummary').innerHTML = counts.map((n, l) => `<span style="--c:${LVCOL[l]}">مستوى ${nf.format(l)}: <b>${nf.format(n)}</b></span>`).join('');
+  $('#stuList').innerHTML = c.students.length ? c.students.map((s, i) => `
+    <li data-id="${s.id}"><span class="num">${nf.format(i + 1)}</span>
+      <span class="nm" contenteditable="true" spellcheck="false">${esc(s.name)}</span>
+      <button class="lvl" style="--c:${LVCOL[s.level | 0]}" title="المستوى">${nf.format(s.level | 0)}</button>
+      <button class="del" title="حذف">✕</button></li>`).join('') : '<li class="empty">لا يوجد طلاب بعد — ألصق الأسماء في المربع أعلاه.</li>';
+  $$('#stuList li[data-id]').forEach(li => {
+    const s = c.students.find(x => x.id === li.dataset.id);
+    li.querySelector('.lvl').onclick = e => { s.level = ((s.level | 0) + 1) % 6; save(); const b = e.currentTarget; b.textContent = nf.format(s.level); b.style.setProperty('--c', LVCOL[s.level]); renderSummaryOnly(); };
+    li.querySelector('.del').onclick = () => confirmBox(`حذف الطالب «${s.name}»؟`, () => { c.students = c.students.filter(x => x !== s); save(); renderStudents(); }, 'حذف');
+    const nm = li.querySelector('.nm'); nm.onblur = () => { const v = nm.textContent.trim(); if (v) { s.name = v; save(); } else nm.textContent = s.name; };
+    nm.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); nm.blur(); } };
+  });
+  renderGroups();
+}
+function renderSummaryOnly() {
+  const c = cls(), counts = [0, 0, 0, 0, 0, 0]; c.students.forEach(s => counts[s.level | 0]++);
+  $('#lvlSummary').innerHTML = counts.map((n, l) => `<span style="--c:${LVCOL[l]}">مستوى ${nf.format(l)}: <b>${nf.format(n)}</b></span>`).join('');
+  renderGroups();
+}
+function renderGroups() {
+  const c = cls(); if (!c.students.length) { $('#groupsView').innerHTML = ''; return; }
+  ensureGroups(c); const byId = Object.fromEntries(c.students.map(s => [s.id, s]));
+  $('#groupsView').innerHTML = c.groups.map((g, i) => `<div class="grp" style="--c:${GCOL[i]}"><h4>المجموعة ${nf.format(i + 1)} <small>(${nf.format(g.length)})</small></h4>
+    <ul>${g.map(id => byId[id]).filter(Boolean).sort((a, b) => b.level - a.level).map(s => `<li>${esc(s.name)} <i style="--c:${LVCOL[s.level | 0]}">${nf.format(s.level | 0)}</i></li>`).join('')}</ul></div>`).join('');
+}
+$('#btnAddNames').onclick = () => {
+  const c = cls(), lines = $('#namesInput').value.split(/\n|،|,/).map(s => s.trim()).filter(Boolean);
+  if (!lines.length) return;
+  lines.forEach(n => c.students.push({ id: uid(), name: n, level: 0 })); $('#namesInput').value = ''; save(); renderStudents();
+  toast(`أُضيف ${nf.format(lines.length)} طالب`);
+};
+$('#className').onchange = e => { const v = e.target.value.trim(); if (v) { cls().name = v; save(); renderStudents(); } };
+$('#btnAddClass').onclick = () => { const c = { id: uid(), name: 'صف جديد ' + nf.format(S.classes.length + 1), students: [], groups: null }; S.classes.push(c); S.currentClass = c.id; save(); renderStudents(); $('#className').focus(); $('#className').select(); };
+$('#btnDelClass').onclick = () => { if (S.classes.length < 2) { toast('يجب أن يبقى صف واحد على الأقل'); return; } const c = cls(); confirmBox(`حذف الصف «${c.name}» وكل أسمائه؟`, () => { S.classes = S.classes.filter(x => x !== c); S.currentClass = S.classes[0].id; save(); renderStudents(); }, 'حذف'); };
+$('#btnRegroup').onclick = () => { const c = cls(); if (!c.students.length) return; confirmBox('هل أنت متأكد من تغيير الترتيب؟', () => { makeGroupsFor(c); renderGroups(); }); };
+$('#btnResetLevels').onclick = () => confirmBox('تصفير مستويات جميع طلاب هذا الصف؟', () => { cls().students.forEach(s => s.level = 0); save(); renderStudents(); });
+$('#btnExport').onclick = () => {
+  const blob = new Blob([JSON.stringify({ classes: S.classes }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'قوائم-الطلاب.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('#btnImport').onclick = () => $('#importFile').click();
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const d = JSON.parse(await f.text()); if (!Array.isArray(d.classes)) throw 0; S.classes = d.classes; S.currentClass = S.classes[0].id; save(); renderStudents(); toast('تم الاستيراد ✔'); }
+  catch (er) { toast('الملف غير صالح'); }
+  e.target.value = '';
+};
+
+// ---------------- settings tab ----------------
+const FIELDS = [
+  ['أبعاد الصف (بالمتر)', [['roomW', 'عرض الصف (يمين–يسار)', 3, 20, 0.1], ['roomD', 'طول الصف (من الأمام للخلف)', 3, 20, 0.1]]],
+  ['مقاس الطاولة الواحدة (بالمتر)', [['deskW', 'عرض الطاولة', 0.3, 2, 0.05], ['deskD', 'عمق الطاولة', 0.3, 1.5, 0.05]]],
+  ['الترتيب الأساسي', [['basic.blocks', 'عدد الأعمدة (الكتل)', 1, 6, 1], ['basic.perRow', 'طاولات متلاصقة في كل كتلة', 1, 4, 1], ['basic.rows', 'عدد الصفوف', 1, 12, 1], ['basic.aisle', 'عرض الممر بين الكتل', 0.2, 3, 0.05], ['basic.pitch', 'المسافة بين صف وآخر', 0.6, 3, 0.05], ['basic.front', 'بُعد أول صف عن الجدار الأمامي', 0, 6, 0.05]]],
+  ['ترتيب حرف L', [['L.side', 'ضلع L الجانبي على جدار', 'sel'], ['L.sideCount', 'عدد طاولات الضلع الجانبي', 0, 40, 1], ['L.backCount', 'عدد طاولات الجدار الخلفي', 0, 40, 1], ['L.gap', 'المسافة عن الجدار', 0, 1, 0.01]]],
+  ['الكاميرا والكشف', [['hfov', 'زاوية رؤية العدسة (درجة)', 30, 120, 1], ['thresh', 'حساسية اعتبار الطاولة في مكانها (٠٫١–٠٫٩)', 0.1, 0.9, 0.05], ['color.th', 'سماحية درجة اللون', 3, 60, 1], ['color.ts', 'سماحية التشبع', 0.05, 0.6, 0.01], ['color.tv', 'سماحية الإضاءة', 0.05, 0.8, 0.01]]]
+];
+const getP = p => p.split('.').reduce((o, k) => o[k], S.settings);
+const setP = (p, v) => { const ks = p.split('.'); const last = ks.pop(); ks.reduce((o, k) => o[k], S.settings)[last] = v; };
+function renderSettings() {
+  $('#settingsForm').innerHTML = FIELDS.map(([title, fs]) => `<fieldset><legend>${title}</legend>${fs.map(([p, label, min, max, step]) =>
+    min === 'sel' ? `<label>${label}<select data-p="${p}"><option value="right">الأيمن (جهة النوافذ)</option><option value="left">الأيسر</option></select></label>`
+      : `<label>${label}<input type="number" inputmode="decimal" data-p="${p}" min="${min}" max="${max}" step="${step}"></label>`).join('')}</fieldset>`).join('') +
+    `<fieldset><legend>خيارات</legend>
+      <label class="ck"><input type="checkbox" data-c="showMask"> تظليل الطاولات الحقيقية بالأحمر</label>
+      <label class="ck"><input type="checkbox" data-c="detect"> الأرقام فوق رؤوس الطلاب (كشف الأشخاص بالذكاء الاصطناعي)</label>
+      <label>الكاميرا<select data-p="facing"><option value="environment">الخلفية</option><option value="user">الأمامية</option></select></label>
+    </fieldset>`;
+  $$('#settingsForm [data-p]').forEach(el => {
+    el.value = getP(el.dataset.p);
+    el.onchange = () => {
+      const p = el.dataset.p; let v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
+      if (el.tagName !== 'SELECT') { if (!isFinite(v)) { el.value = getP(p); return; } v = Math.min(+el.max, Math.max(+el.min, v)); el.value = v; }
+      setP(p, v); save();
+      if (p.startsWith('basic.') || p === 'roomW' || p === 'roomD' || p === 'deskW' || p === 'deskD') regen('basic', true);
+      if (p.startsWith('L.') || p === 'roomW' || p === 'roomD' || p === 'deskW' || p === 'deskD') regen('L', true);
+      if (p === 'facing' && rt.stream) startCamera();
+      updateCounts();
+    };
+  });
+  $$('#settingsForm [data-c]').forEach(el => { el.checked = !!S.settings[el.dataset.c]; el.onchange = () => { S.settings[el.dataset.c] = el.checked; save(); if (el.dataset.c === 'detect' && el.checked && rt.stream) loadModel(); }; });
+  updateCounts();
+}
+function updateCounts() {
+  const c = cls();
+  $('#deskCounts').innerHTML = `طاولات الترتيب الأساسي: <b>${nf.format(S.layouts.basic.length)}</b> — طاولات ترتيب L: <b>${nf.format(S.layouts.L.length)}</b> — طلاب ${esc(c.name)}: <b>${nf.format(c.students.length)}</b>`;
+}
+function regen(which, quiet) {
+  if (which === 'basic') {
+    S.layouts.basic = Core.genBasic(S.settings);
+    S.calib.room = basicBBox(); updateH(); // keep the on-screen handles where the teacher put them
+  } else S.layouts.L = Core.genL(S.settings);
+  rt.ds = []; save(); if (!quiet) toast('تمت إعادة التوليد');
+}
+$('#btnRegenBasic').onclick = () => confirmBox('إعادة توليد الترتيب الأساسي؟ ستضيع التعديلات اليدوية على طاولاته.', () => { regen('basic'); updateCounts(); });
+$('#btnRegenL').onclick = () => confirmBox('إعادة توليد ترتيب L؟ ستضيع التعديلات اليدوية على طاولاته.', () => { regen('L'); updateCounts(); });
+$('#btnResetCalib').onclick = () => confirmBox('إعادة ضبط موضع المخطط على الشاشة إلى الوضع الافتراضي؟', () => { S.calib = defaultCalib(); updateH(); save(); toast('تمت إعادة الضبط'); });
+$('#btnResetColor').onclick = () => { S.settings.color = defaults().settings.color; save(); renderSettings(); toast('أُعيد لون الطاولة الافتراضي'); };
+$('#btnWipe').onclick = () => confirmBox('مسح كل البيانات (الصفوف والأسماء والإعدادات)؟ لا يمكن التراجع.', () => { localStorage.removeItem(KEY); location.reload(); }, 'مسح');
+
+// ---------------- init ----------------
+window.addEventListener('beforeunload', () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } } });
+showTab('cam');
+})();
+
+</script>
+</body>
+</html>
