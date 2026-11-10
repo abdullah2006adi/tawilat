@@ -176,7 +176,7 @@ textarea{width:100%;min-height:96px;resize:vertical}
     <div id="settingsForm"></div>
     <div class="card row">
       <button class="btn" id="btnRegenBasic">إعادة توليد الترتيب الأساسي</button>
-      <button class="btn" id="btnRegenL">إعادة توليد ترتيب L</button>
+      <button class="btn" id="btnRegenL">إعادة توليد ترتيب U</button>
       <button class="btn" id="btnResetCalib">إعادة ضبط موضع المخطط</button>
       <button class="btn" id="btnResetColor">لون الطاولة الافتراضي</button>
       <button class="btn danger" id="btnWipe">مسح كل البيانات</button>
@@ -184,7 +184,7 @@ textarea{width:100%;min-height:96px;resize:vertical}
     <div class="card help">
       <b>طريقة الضبط أول مرة:</b><br>
       ١. رتّب الطاولات بالترتيب الأساسي، وثبّت الآيباد في مكانه المعتاد ووجّهه نحو الصف.<br>
-      ٢. اضبط هنا عدد الكتل والصفوف ليطابق صفك، وعدد طاولات ضلعَي حرف L.<br>
+      ٢. اضبط هنا عدد الكتل والصفوف ليطابق صفك، وعدد طاولات أضلاع حرف U الثلاثة.<br>
       ٣. في الكاميرا اضغط «✎ ضبط المخطط»، واسحب النقاط الصفراء حتى تنطبق المستطيلات البيضاء على الطاولات الحقيقية، ثم «🎨 عيّنة لون الطاولة» والمس سطح طاولة، ثم «✔ تم».<br>
       ٤. بعد ذلك تُحفظ صورة مرجعية، وعند تشغيل الكاميرا لاحقاً يحاول المخطط محاذاة نفسه تلقائياً إذا وُجّه الآيباد للاتجاه نفسه تقريباً.<br>
       <b>ملاحظات:</b> الطاولة تُعدّ في مكانها إذا غطّى سطحها الخشبي جزءاً كافياً من مستطيلها (عدّل «الحساسية» إن احتجت). الأرقام فوق الرؤوس تحتاج إنترنت لتحميل نموذج كشف الأشخاص، وتُنسب كل طاولة تصبح خضراء لأقرب طالب إليها لحظتها.
@@ -357,22 +357,16 @@ const Core = (() => {
     }
     return desks;
   }
-  function genL(s) {
-    const L = s.L, g = L.gap, desks = [], right = L.side !== 'left';
-    const backY = s.roomD - g - s.deskD / 2;
-    // side arm: from front end towards the back corner (so the L is one continuous sequence)
-    const side = [];
-    for (let i = 0; i < L.sideCount; i++) {
-      const cy = s.roomD - g - s.deskD - (i + 0.5) * s.deskW;
-      const cx = right ? s.roomW - g - s.deskD / 2 : g + s.deskD / 2;
-      side.push({ cx, cy, w: s.deskD, h: s.deskW });
-    }
-    side.reverse(); desks.push(...side);
-    for (let i = 0; i < L.backCount; i++) {
-      const cx = right ? s.roomW - g - (i + 0.5) * s.deskW : g + (i + 0.5) * s.deskW;
-      desks.push({ cx, cy: backY, w: s.deskW, h: s.deskD });
-    }
-    return desks;
+  function genU(s) {
+    const U = s.U, g = U.gap, W = s.roomW, D = s.roomD, dw = s.deskW, dd = s.deskD;
+    const sideY0 = D - g - dd; // side arms end just before the back row
+    const left = [], back = [], right = [];
+    for (let i = 0; i < U.leftCount; i++) left.push({ cx: g + dd / 2, cy: sideY0 - (i + 0.5) * dw, w: dd, h: dw });
+    const bx0 = (W - U.backCount * dw) / 2;
+    for (let i = 0; i < U.backCount; i++) back.push({ cx: bx0 + (i + 0.5) * dw, cy: D - g - dd / 2, w: dw, h: dd });
+    for (let i = 0; i < U.rightCount; i++) right.push({ cx: W - g - dd / 2, cy: sideY0 - (i + 0.5) * dw, w: dd, h: dw });
+    // one continuous sequence: left arm front->back, back wall left->right, right arm back->front
+    return [...left.reverse(), ...back, ...right];
   }
   function chunkSizes(n, k) { const a = []; for (let i = 0; i < k; i++) a.push(Math.floor(n / k) + (i < n % k ? 1 : 0)); return a; }
 
@@ -396,7 +390,7 @@ const Core = (() => {
     return groups.map(g => shuffle(g, rnd));
   }
 
-  return { solve, homography, inv3, mul3, tmul3, rotM, gray, highpass, down2, pyramid, estimateShift, rgb2hsv, deskMask, cleanMask, genBasic, genL, chunkSizes, makeGroups, shuffle };
+  return { solve, homography, inv3, mul3, tmul3, rotM, gray, highpass, down2, pyramid, estimateShift, rgb2hsv, deskMask, cleanMask, genBasic, genU, chunkSizes, makeGroups, shuffle };
 })();
 if (typeof module !== 'undefined') module.exports = Core;
 
@@ -417,9 +411,9 @@ const COCO = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dis
 function defaults() {
   return {
     settings: {
-      roomW: 9, roomD: 10, deskW: 0.65, deskD: 0.45,
+      roomW: 10, roomD: 10, deskW: 0.65, deskD: 0.45,
       basic: { blocks: 3, perRow: 2, rows: 5, aisle: 0.9, pitch: 1.25, front: 1.8 },
-      L: { side: 'right', sideCount: 14, backCount: 13, gap: 0.05 },
+      U: { leftCount: 6, backCount: 14, rightCount: 13, gap: 0.05 },
       hfov: 63, thresh: 0.35, color: { h: 28, s: 0.32, v: 0.82, th: 14, ts: 0.2, tv: 0.3 },
       detect: true, showMask: true, facing: 'environment'
     },
@@ -430,10 +424,13 @@ function defaults() {
 let S;
 try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
 if (!S || !S.settings) S = defaults();
-{ const d = defaults(); S.settings = Object.assign(d.settings, S.settings); S.settings.basic = Object.assign(d.settings.basic, S.settings.basic); S.settings.L = Object.assign(d.settings.L, S.settings.L); S.settings.color = Object.assign(d.settings.color, S.settings.color); }
+{ const d = defaults(); S.settings = Object.assign(d.settings, S.settings); S.settings.basic = Object.assign(d.settings.basic, S.settings.basic); S.settings.U = Object.assign(d.settings.U, S.settings.U);
+  if (S.settings.L) { delete S.settings.L; if (S.settings.roomW < 10) S.settings.roomW = 10; if (S.settings.roomD < 10) S.settings.roomD = 10; } S.settings.color = Object.assign(d.settings.color, S.settings.color); }
 if (!S.classes || !S.classes.length) S.classes = defaults().classes;
 if (!S.currentClass || !S.classes.find(c => c.id === S.currentClass)) S.currentClass = S.classes[0].id;
-if (!S.layouts) S.layouts = { basic: Core.genBasic(S.settings), L: Core.genL(S.settings) };
+if (!S.layouts) S.layouts = { basic: Core.genBasic(S.settings), U: Core.genU(S.settings) };
+if (!S.layouts.U) { delete S.layouts.L; S.layouts.U = Core.genU(S.settings); }
+if (S.layout !== 'basic') S.layout = 'U';
 if (!S.calib) S.calib = defaultCalib();
 let saveT = 0;
 function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('تعذر الحفظ في المتصفح'); } }, 200); }
@@ -793,7 +790,7 @@ function hud(t) {
   const D = desks(), g = rt.ds.filter(d => d.green).length, pct = D.length ? Math.round(100 * g / D.length) : 0;
   $('#hudPct b').textContent = nf.format(pct) + '٪';
   $('#hudPct i').style.width = pct + '%';
-  $('#hudPct small').textContent = (S.layout === 'L' ? 'ترتيب حرف L' : 'الترتيب الأساسي') + ' — ' + nf.format(g) + ' من ' + nf.format(D.length);
+  $('#hudPct small').textContent = (S.layout === 'U' ? 'ترتيب حرف U' : 'الترتيب الأساسي') + ' — ' + nf.format(g) + ' من ' + nf.format(D.length);
   $('#hudPct').classList.toggle('full', pct === 100);
   if (tm.start && !tm.end && pct === 100 && t - tm.start > 2000) { tm.end = t; toast('أحسنتم! اكتمل ترتيب الطاولات ✔', 4000); }
 }
@@ -816,7 +813,7 @@ rt.planOn = true;
 
 // ---------------- toolbar ----------------
 function refreshToolbar() {
-  $('#btnLayout').innerHTML = S.layout === 'L' ? '▦ مخطط الطاولات: <b>L</b> ⇦ أساسي' : '▦ مخطط الطاولات: <b>أساسي</b> ⇦ L';
+  $('#btnLayout').innerHTML = S.layout === 'U' ? '▦ مخطط الطاولات: <b>U</b> ⇦ أساسي' : '▦ مخطط الطاولات: <b>أساسي</b> ⇦ U';
   const sel = $('#classSel'); sel.innerHTML = S.classes.map(c => `<option value="${c.id}">${esc(c.name)} (${nf.format(c.students.length)})</option>`).join('');
   sel.value = S.currentClass;
   $('#btnNames').classList.toggle('on', rt.names);
@@ -824,7 +821,7 @@ function refreshToolbar() {
   $('#hudWarn').textContent = un.length ? `⚠ ${nf.format(un.length)} طالب بلا طاولة (عدد الطاولات أقل): ${un.slice(0, 4).join('، ')}${un.length > 4 ? '…' : ''}` : '';
 }
 $('#btnLayout').onclick = () => {
-  S.layout = S.layout === 'L' ? 'basic' : 'L'; save();
+  S.layout = S.layout === 'U' ? 'basic' : 'U'; save();
   rt.ds = []; rt.tracks.forEach(tr => tr.count = 0); rt.tracks = rt.tracks.filter(tr => performance.now() - tr.seen < 4000);
   const now = performance.now(); rt.timer = { start: now, end: 0 }; rt.sessionStart = now; rt.done = false;
   refreshToolbar();
@@ -972,7 +969,7 @@ const FIELDS = [
   ['أبعاد الصف (بالمتر)', [['roomW', 'عرض الصف (يمين–يسار)', 3, 20, 0.1], ['roomD', 'طول الصف (من الأمام للخلف)', 3, 20, 0.1]]],
   ['مقاس الطاولة الواحدة (بالمتر)', [['deskW', 'عرض الطاولة', 0.3, 2, 0.05], ['deskD', 'عمق الطاولة', 0.3, 1.5, 0.05]]],
   ['الترتيب الأساسي', [['basic.blocks', 'عدد الأعمدة (الكتل)', 1, 6, 1], ['basic.perRow', 'طاولات متلاصقة في كل كتلة', 1, 4, 1], ['basic.rows', 'عدد الصفوف', 1, 12, 1], ['basic.aisle', 'عرض الممر بين الكتل', 0.2, 3, 0.05], ['basic.pitch', 'المسافة بين صف وآخر', 0.6, 3, 0.05], ['basic.front', 'بُعد أول صف عن الجدار الأمامي', 0, 6, 0.05]]],
-  ['ترتيب حرف L', [['L.side', 'ضلع L الجانبي على جدار', 'sel'], ['L.sideCount', 'عدد طاولات الضلع الجانبي', 0, 40, 1], ['L.backCount', 'عدد طاولات الجدار الخلفي', 0, 40, 1], ['L.gap', 'المسافة عن الجدار', 0, 1, 0.01]]],
+  ['ترتيب حرف U', [['U.leftCount', 'طاولات الجدار الأيسر', 0, 40, 1], ['U.backCount', 'طاولات الجدار الخلفي', 0, 40, 1], ['U.rightCount', 'طاولات الجدار الأيمن (النوافذ)', 0, 40, 1], ['U.gap', 'المسافة عن الجدار', 0, 1, 0.01]]],
   ['الكاميرا والكشف', [['hfov', 'زاوية رؤية العدسة (درجة)', 30, 120, 1], ['thresh', 'حساسية اعتبار الطاولة في مكانها (٠٫١–٠٫٩)', 0.1, 0.9, 0.05], ['color.th', 'سماحية درجة اللون', 3, 60, 1], ['color.ts', 'سماحية التشبع', 0.05, 0.6, 0.01], ['color.tv', 'سماحية الإضاءة', 0.05, 0.8, 0.01]]]
 ];
 const getP = p => p.split('.').reduce((o, k) => o[k], S.settings);
@@ -993,7 +990,7 @@ function renderSettings() {
       if (el.tagName !== 'SELECT') { if (!isFinite(v)) { el.value = getP(p); return; } v = Math.min(+el.max, Math.max(+el.min, v)); el.value = v; }
       setP(p, v); save();
       if (p.startsWith('basic.') || p === 'roomW' || p === 'roomD' || p === 'deskW' || p === 'deskD') regen('basic', true);
-      if (p.startsWith('L.') || p === 'roomW' || p === 'roomD' || p === 'deskW' || p === 'deskD') regen('L', true);
+      if (p.startsWith('U.') || p === 'roomW' || p === 'roomD' || p === 'deskW' || p === 'deskD') regen('U', true);
       if (p === 'facing' && rt.stream) startCamera();
       updateCounts();
     };
@@ -1003,17 +1000,17 @@ function renderSettings() {
 }
 function updateCounts() {
   const c = cls();
-  $('#deskCounts').innerHTML = `طاولات الترتيب الأساسي: <b>${nf.format(S.layouts.basic.length)}</b> — طاولات ترتيب L: <b>${nf.format(S.layouts.L.length)}</b> — طلاب ${esc(c.name)}: <b>${nf.format(c.students.length)}</b>`;
+  $('#deskCounts').innerHTML = `طاولات الترتيب الأساسي: <b>${nf.format(S.layouts.basic.length)}</b> — طاولات ترتيب U: <b>${nf.format(S.layouts.U.length)}</b> — طلاب ${esc(c.name)}: <b>${nf.format(c.students.length)}</b>`;
 }
 function regen(which, quiet) {
   if (which === 'basic') {
     S.layouts.basic = Core.genBasic(S.settings);
     S.calib.room = basicBBox(); updateH(); // keep the on-screen handles where the teacher put them
-  } else S.layouts.L = Core.genL(S.settings);
+  } else S.layouts.U = Core.genU(S.settings);
   rt.ds = []; save(); if (!quiet) toast('تمت إعادة التوليد');
 }
 $('#btnRegenBasic').onclick = () => confirmBox('إعادة توليد الترتيب الأساسي؟ ستضيع التعديلات اليدوية على طاولاته.', () => { regen('basic'); updateCounts(); });
-$('#btnRegenL').onclick = () => confirmBox('إعادة توليد ترتيب L؟ ستضيع التعديلات اليدوية على طاولاته.', () => { regen('L'); updateCounts(); });
+$('#btnRegenL').onclick = () => confirmBox('إعادة توليد ترتيب U؟ ستضيع التعديلات اليدوية على طاولاته.', () => { regen('U'); updateCounts(); });
 $('#btnResetCalib').onclick = () => confirmBox('إعادة ضبط موضع المخطط على الشاشة إلى الوضع الافتراضي؟', () => { S.calib = defaultCalib(); updateH(); save(); toast('تمت إعادة الضبط'); });
 $('#btnResetColor').onclick = () => { S.settings.color = defaults().settings.color; save(); renderSettings(); toast('أُعيد لون الطاولة الافتراضي'); };
 $('#btnWipe').onclick = () => confirmBox('مسح كل البيانات (الصفوف والأسماء والإعدادات)؟ لا يمكن التراجع.', () => { localStorage.removeItem(KEY); location.reload(); }, 'مسح');
